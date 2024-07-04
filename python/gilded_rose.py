@@ -15,14 +15,27 @@ class GildedRose(object):
         for item in self.items:
             decrease_qual = 1
 
-            if item.name == 'Sulfuras, Hand of Ragnaros':
+            rand = random.randint(1, 100)
+            if item.sell_in % 2 == 0 and rand < 33:
+                item.is_fake = True
+
+            if item.sell_in % 2 != 0 and rand < 15:
+                item.is_legendary = True
+
+            if item.name == 'Sulfuras, Hand of Ragnaros' and not item.is_fake:
                 if item.sell_in > 0:
                     item.sell_in -= 1
                 continue
 
-            if item.name == 'Aged Brie':
+            if item.is_fake:
+                if item.sell_in > 0:
+                    decrease_qual =  get_fibo(item.fake_days)
+                item.fake_days += 1
+            elif item.is_legendary:
+                decrease_qual = -item.quality
+            elif item.name.endswith('Aged Brie'):
                 decrease_qual = -1
-            elif item.name.startswith("Backstage passes"):
+            elif "Backstage passes" in item.name:
                 if item.sell_in == 0:
                     decrease_qual = item.quality
                 elif item.sell_in <= 5:
@@ -31,15 +44,16 @@ class GildedRose(object):
                     decrease_qual = -2
                 else:
                     decrease_qual = -1
-            elif item.name.startswith("Conjured"):
-                decrease_qual = 2
+            if item.name.startswith("Conjured"):
+                if decrease_qual > 0:
+                    decrease_qual *= 2
 
             if decrease_qual > 0 and item.sell_in == 0:
                 decrease_qual *= 2
 
-            item.quality = min(50, max(item.quality, 0))
+            item.quality = min(50, max(item.quality - decrease_qual, 0))
 
-            if item.sell_in > 0:
+            if item.sell_in > 0 and not item.is_legendary:
                 item.sell_in -= 1
 
 
@@ -48,14 +62,26 @@ class Item:
         self.name = name
         self.sell_in = sell_in
         self.quality = quality
+        self.is_fake = False
+        self.is_legendary = False
+        self.fake_days = 0
 
     def __repr__(self):
-        return "%s, %s, %s" % (self.name, self.sell_in, self.quality)
+
+        output = "%s, %s, %s" % (self.name, self.sell_in, self.quality)
+
+        if self.is_legendary:
+            output += ", (legendary)"
+        if self.is_fake:
+            output += ", (fake, day %d)" % self.fake_days
+
+        return output
 
 
 class SulfurasItem(Item):
     def __init__(self, name, sell_in, quality):
-        super(SulfurasItem, self).__init__("Sulfuras, The Hand of Ragnaros", sell_in, 80)
+        super(SulfurasItem, self).__init__("Sulfuras, Hand of Ragnaros", sell_in, 80)
+        self.is_legendary = True
 
 
 class AgedBrieItem(Item):
@@ -89,9 +115,27 @@ def random_item_factory(type=0, name="Test", n=10, test_start=0,
             for i in range(n)]
 
 
+def get_fibo(n):
+    if n < 0:
+        print("Incorrect input")
+
+        # Check if n is 0
+        # then it will return 0
+    elif n == 0:
+        return 0
+
+        # Check if n is 1,2
+        # it will return 1
+    elif n == 1 or n == 2:
+        return 1
+
+    else:
+        return get_fibo(n - 1) + get_fibo(n - 2)
+
+
 def log_items(items, num_tests):
 
-    logger.info("generated %d items\n", len(items))
+    logger.info("updating %d items\n", len(items))
     for test_no, item in enumerate(items):
         if test_no % num_tests == 0:
             logger.info("\n")
@@ -106,11 +150,16 @@ if __name__ == '__main__':
 
     log_items(items, num_tests)
 
-    GildedRose(items).update_quality()
+    logger.info("Running 20 itterations...\n\n")
+    for i in range(20):
+        GildedRose(items).update_quality()
 
-    logger.info("\nGildedRose done\n")
+        logger.info("\nGildedRose done\n")
 
-    log_items(items, num_tests)
+        log_items(items, num_tests)
+
+    for item in items:
+        print(item)
 
 
 
